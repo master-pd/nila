@@ -1,321 +1,327 @@
-#!/usr/bin/env python3
 """
-NILA BOT - AUTO SETUP WIZARD
-Termux Friendly | No ENV | No Hardcode
+setup.py - Interactive Setup Wizard
+User শুধু এই ফাইলটি রান করবে
 """
 
 import os
 import sys
-import json
+import subprocess
 import getpass
-import hashlib
 from pathlib import Path
 from datetime import datetime
-import base64
-import random
-import string
 
+# Color codes for beautiful interface
 class Colors:
-    """Terminal Colors"""
-    RED = '\033[91m'
     GREEN = '\033[92m'
-    YELLOW = '\033[93m'
     BLUE = '\033[94m'
-    MAGENTA = '\033[95m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    PURPLE = '\033[95m'
     CYAN = '\033[96m'
-    WHITE = '\033[97m'
     BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
     END = '\033[0m'
-
-def print_logo():
-    """Print Nila Bot Logo"""
-    logo = f"""{Colors.MAGENTA}
-╔══════════════════════════════════════╗
-║         ███╗   ██╗██╗██╗      █████╗ ║
-║         ████╗  ██║██║██║     ██╔══██╗║
-║         ██╔██╗ ██║██║██║     ███████║║
-║         ██║╚██╗██║██║██║     ██╔══██║║
-║         ██║ ╚████║██║███████╗██║  ██║║
-║         ╚═╝  ╚═══╝╚═╝╚══════╝╚═╝  ╚═╝║
-║     {Colors.CYAN}T E L E G R A M   B O T{Colors.MAGENTA}     ║
-╚══════════════════════════════════════╝{Colors.END}
-    """
-    print(logo)
 
 def clear_screen():
     """Clear terminal screen"""
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def get_input(prompt, password=False):
-    """Get user input with styling"""
-    if password:
-        return getpass.getpass(f"{Colors.YELLOW}👉 {prompt}: {Colors.END}")
-    else:
-        return input(f"{Colors.YELLOW}👉 {prompt}: {Colors.END}")
+def print_banner():
+    """Show beautiful banner"""
+    banner = f"""
+{Colors.PURPLE}{Colors.BOLD}
+╔══════════════════════════════════════════════════════╗
+║                                                      ║
+║      🚀 𝗡ɪʟᴀ♡ʚɞ ←●_0 𝗕𝗢𝗧 𝗦𝗘𝗧𝗨𝗣 𝗪𝗜𝗭𝗔𝗥𝗗          ║
+║                                                      ║
+║     Version: 6.0.0 | Professional Telegram Bot      ║
+║     No ENV | No Hardcode | Auto Setup              ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╗{Colors.END}
+"""
+    print(banner)
 
-def print_step(step, message):
-    """Print step message"""
-    print(f"\n{Colors.GREEN}[{step}] {Colors.CYAN}{message}{Colors.END}")
+def check_python_version():
+    """Check Python version compatibility"""
+    if sys.version_info < (3, 8):
+        print(f"{Colors.RED}❌ Python 3.8+ required!{Colors.END}")
+        sys.exit(1)
+    print(f"{Colors.GREEN}✅ Python {sys.version_info.major}.{sys.version_info.minor} detected{Colors.END}")
 
-def print_error(message):
-    """Print error message"""
-    print(f"\n{Colors.RED}❌ ERROR: {message}{Colors.END}")
-
-def print_success(message):
-    """Print success message"""
-    print(f"\n{Colors.GREEN}✅ {message}{Colors.END}")
-
-def print_info(message):
-    """Print info message"""
-    print(f"{Colors.BLUE}ℹ️  {message}{Colors.END}")
-
-def generate_secret_key():
-    """Generate secret key for encryption"""
-    chars = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(random.choice(chars) for _ in range(50))
-
-def encrypt_data(data, key):
-    """Simple encryption"""
-    import base64
-    from cryptography.fernet import Fernet
+def install_dependencies():
+    """Install required packages"""
+    print(f"\n{Colors.CYAN}📦 Installing dependencies...{Colors.END}")
     
-    # Generate key from secret
-    key_hash = hashlib.sha256(key.encode()).digest()
-    fernet = Fernet(base64.urlsafe_b64encode(key_hash))
+    requirements = [
+        "python-telegram-bot==20.7",
+        "Pillow==10.1.0",
+        "cryptography==41.0.7",
+        "python-dotenv==1.0.0",
+        "sqlite3",
+        "requests==2.31.0",
+        "cloudinary==1.36.0",
+        "yt-dlp==2023.10.13",
+        "opencv-python==4.8.1.78",
+        "numpy==1.24.3"
+    ]
     
-    # Encrypt
-    encrypted = fernet.encrypt(json.dumps(data).encode())
-    return encrypted.decode()
-
-def decrypt_data(encrypted_data, key):
-    """Simple decryption"""
-    import base64
-    from cryptography.fernet import Fernet
-    
-    # Generate key from secret
-    key_hash = hashlib.sha256(key.encode()).digest()
-    fernet = Fernet(base64.urlsafe_b64encode(key_hash))
-    
-    # Decrypt
-    decrypted = fernet.decrypt(encrypted_data.encode())
-    return json.loads(decrypted.decode())
-
-class SetupWizard:
-    def __init__(self):
-        self.config = {}
-        self.secret_key = ""
-        self.bot_token = ""
-        self.owner_id = ""
-        self.setup_dir = Path(__file__).parent
-        
-    def run(self):
-        """Run setup wizard"""
-        clear_screen()
-        print_logo()
-        
-        print(f"\n{Colors.BOLD}Welcome to Nila Bot Setup Wizard{Colors.END}")
-        print(f"{Colors.YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}")
-        
-        # Step 1: Get Bot Token
-        print_step("1", "Get Your Bot Token")
-        print_info("1. Go to @BotFather on Telegram")
-        print_info("2. Send /newbot command")
-        print_info("3. Choose a name for your bot")
-        print_info("4. Choose a username (must end with 'bot')")
-        print_info("5. Copy the token you receive")
-        
-        while True:
-            self.bot_token = get_input("Enter your bot token", password=True)
-            if self.bot_token and len(self.bot_token) > 30:
-                if ":" in self.bot_token:
-                    print_success("Valid token format detected")
-                    break
-                else:
-                    print_error("Invalid token format")
-            else:
-                print_error("Token too short")
-        
-        # Step 2: Get Owner ID
-        print_step("2", "Get Your Telegram ID")
-        print_info("1. Go to @userinfobot on Telegram")
-        print_info("2. Send /start command")
-        print_info("3. Copy your ID number")
-        
-        while True:
-            owner_input = get_input("Enter your Telegram ID")
-            if owner_input.isdigit():
-                self.owner_id = int(owner_input)
-                print_success(f"Owner ID set: {self.owner_id}")
-                break
-            else:
-                print_error("Please enter a valid number")
-        
-        # Step 3: Generate Secret Key
-        print_step("3", "Generating Security Keys")
-        self.secret_key = generate_secret_key()
-        print_success("Security keys generated")
-        
-        # Step 4: Additional Settings
-        print_step("4", "Additional Settings")
-        
-        # Bot Name
-        bot_name = get_input("Bot display name (default: Nila Bot)")
-        if not bot_name:
-            bot_name = "Nila Bot"
-        
-        # Welcome Message
-        welcome_msg = get_input("Welcome message (default: Hello!)")
-        if not welcome_msg:
-            welcome_msg = "Hello! 👋"
-        
-        # Admin Password
-        admin_pass = get_input("Set admin password (optional)")
-        if not admin_pass:
-            admin_pass = generate_secret_key()[:8]
-        
-        # Step 5: Save Configuration
-        print_step("5", "Saving Configuration")
-        
-        # Prepare config
-        self.config = {
-            "bot_name": bot_name,
-            "bot_token": self.bot_token,
-            "owner_id": self.owner_id,
-            "admin_password": admin_pass,
-            "welcome_message": welcome_msg,
-            "setup_date": datetime.now().isoformat(),
-            "version": "2.0.0",
-            "features": {
-                "welcome": True,
-                "security": True,
-                "auto_response": True,
-                "live_stream": False,
-                "games": False,
-                "music": False
-            }
-        }
-        
-        # Create data directory
-        data_dir = self.setup_dir / "data"
-        data_dir.mkdir(exist_ok=True)
-        
-        # Save encrypted config
-        encrypted_config = encrypt_data(self.config, self.secret_key)
-        
-        with open(data_dir / "config.vault", "w") as f:
-            f.write(encrypted_config)
-        
-        # Save secret key (hidden)
-        with open(data_dir / ".secret.key", "w") as f:
-            f.write(self.secret_key)
-        
-        # Save readable config (without sensitive data)
-        safe_config = self.config.copy()
-        safe_config["bot_token"] = "***" + self.bot_token[-6:]
-        safe_config["admin_password"] = "********"
-        
-        with open(data_dir / "bot_config.json", "w") as f:
-            json.dump(safe_config, f, indent=2)
-        
-        print_success("Configuration saved securely!")
-        
-        # Step 6: Install Requirements
-        print_step("6", "Installing Requirements")
-        
-        requirements = [
-            "python-telegram-bot==20.7",
-            "cryptography==41.0.7",
-            "Pillow==10.1.0",
-            "requests==2.31.0",
-            "aiohttp==3.9.0"
-        ]
-        
+    try:
         # Create requirements.txt
-        req_file = self.setup_dir / "requirements.txt"
-        with open(req_file, "w") as f:
-            f.write("\n".join(requirements))
+        with open("requirements.txt", "w") as f:
+            for req in requirements:
+                f.write(req + "\n")
         
-        print_info("Requirements file created")
+        # Install using pip
+        print(f"{Colors.YELLOW}Installing packages...{Colors.END}")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
         
-        # Ask to install
-        install_req = get_input("Install requirements now? (y/n)").lower()
-        if install_req == 'y':
-            print_info("Installing... This may take a moment.")
-            os.system(f"{sys.executable} -m pip install -r requirements.txt")
-            print_success("Requirements installed!")
+        print(f"{Colors.GREEN}✅ All dependencies installed!{Colors.END}")
+        return True
         
-        # Step 7: Test Bot
-        print_step("7", "Testing Bot Connection")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Failed to install dependencies: {e}{Colors.END}")
+        return False
+
+def get_bot_token():
+    """Get bot token from user"""
+    print(f"\n{Colors.CYAN}🤖 BOT TOKEN SETUP{Colors.END}")
+    print(f"{Colors.YELLOW}1. Go to @BotFather on Telegram")
+    print(f"2. Create new bot with /newbot")
+    print(f"3. Copy the bot token{Colors.END}")
+    
+    while True:
+        token = getpass.getpass(f"\n{Colors.BLUE}Enter bot token (hidden): {Colors.END}")
         
-        print_info("Testing bot token...")
-        try:
-            import requests
-            test_url = f"https://api.telegram.org/bot{self.bot_token}/getMe"
-            response = requests.get(test_url, timeout=10)
+        if len(token) < 10:
+            print(f"{Colors.RED}❌ Invalid token! Try again.{Colors.END}")
+            continue
             
-            if response.status_code == 200:
-                bot_info = response.json()
-                print_success(f"✅ Bot connected: @{bot_info['result']['username']}")
-                print_success(f"✅ Bot name: {bot_info['result']['first_name']}")
-            else:
-                print_error("Failed to connect. Check your token.")
-        except Exception as e:
-            print_error(f"Connection test failed: {e}")
-        
-        # Step 8: Setup Complete
-        print_step("8", "Setup Complete!")
-        
-        summary = f"""
-{Colors.GREEN}{'='*50}{Colors.END}
-{Colors.BOLD}NILA BOT SETUP SUMMARY{Colors.END}
-{Colors.GREEN}{'='*50}{Colors.END}
+        # Validate token format
+        if ":" not in token:
+            print(f"{Colors.RED}❌ Token must contain ':' character{Colors.END}")
+            continue
+            
+        return token
 
-{Colors.CYAN}🤖 Bot Name:{Colors.END} {bot_name}
-{Colors.CYAN}👤 Owner ID:{Colors.END} {self.owner_id}
-{Colors.CYAN}📁 Config Location:{Colors.END} {data_dir / "config.vault"}
-{Colors.CYAN}🔐 Security:{Colors.END} Encrypted with AES-256
+def get_admin_id():
+    """Get admin Telegram ID"""
+    print(f"\n{Colors.CYAN}👑 ADMIN ID SETUP{Colors.END}")
+    print(f"{Colors.YELLOW}1. Go to @userinfobot on Telegram")
+    print(f"2. Send /start")
+    print(f"3. Copy your Telegram ID{Colors.END}")
+    
+    while True:
+        try:
+            admin_id = input(f"\n{Colors.BLUE}Enter your Telegram ID: {Colors.END}")
+            
+            if not admin_id.isdigit():
+                print(f"{Colors.RED}❌ ID must be numeric!{Colors.END}")
+                continue
+                
+            return int(admin_id)
+            
+        except ValueError:
+            print(f"{Colors.RED}❌ Enter valid number!{Colors.END}")
 
-{Colors.YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}
-
-{Colors.BOLD}🚀 START YOUR BOT:{Colors.END}
-{Colors.GREEN}python master.py{Colors.END}
-
-{Colors.BOLD}📋 NEXT STEPS:{Colors.END}
-1. Start your bot: {Colors.GREEN}python master.py{Colors.END}
-2. Go to your bot on Telegram
-3. Send {Colors.YELLOW}/start{Colors.END} command
-4. Configure features with {Colors.YELLOW}/admin{Colors.END}
-
-{Colors.BOLD}🔧 ADMIN PANEL:{Colors.END}
-Password: {Colors.RED}{admin_pass}{Colors.END}
-
-{Colors.GREEN}{'='*50}{Colors.END}
-        """
+def setup_cloudinary():
+    """Setup Cloudinary for media storage"""
+    print(f"\n{Colors.CYAN}☁️ CLOUDINARY SETUP{Colors.END}")
+    print(f"{Colors.YELLOW}1. Go to https://cloudinary.com")
+    print(f"2. Sign up for free account")
+    print(f"3. Get API credentials from dashboard{Colors.END}")
+    
+    use_cloudinary = input(f"\n{Colors.BLUE}Use Cloudinary for media storage? (y/n): {Colors.END}").lower()
+    
+    if use_cloudinary == 'y':
+        cloud_name = input(f"{Colors.BLUE}Cloud Name: {Colors.END}")
+        api_key = getpass.getpass(f"{Colors.BLUE}API Key (hidden): {Colors.END}")
+        api_secret = getpass.getpass(f"{Colors.BLUE}API Secret (hidden): {Colors.END}")
         
-        print(summary)
+        return {
+            "use_cloudinary": True,
+            "cloud_name": cloud_name,
+            "api_key": api_key,
+            "api_secret": api_secret
+        }
+    else:
+        return {"use_cloudinary": False}
+
+def generate_config(token, admin_id, cloudinary_config):
+    """Generate encrypted config file"""
+    from SETUP_CONFIG.crypto_vault import CryptoVault
+    
+    config_data = {
+        "bot_token": token,
+        "admin_ids": [admin_id],
+        "bot_settings": {
+            "name": "𝗡ɪʟᴀ♡ʚɞ ←●_0",
+            "version": "6.0.0",
+            "auto_setup": True,
+            "debug_mode": False
+        },
+        "features": {
+            "welcome_pro": True,
+            "rules_system": True,
+            "live_stream": True,
+            "image_generator": True,
+            "sticker_maker": True
+        },
+        "cloudinary": cloudinary_config,
+        "setup_date": datetime.now().isoformat()
+    }
+    
+    # Create data directory if not exists
+    os.makedirs("DATA_STORAGE", exist_ok=True)
+    
+    # Encrypt and save config
+    vault = CryptoVault()
+    vault.save_config(config_data)
+    
+    print(f"{Colors.GREEN}✅ Encrypted config created: DATA_STORAGE/config.vault{Colors.END}")
+    return True
+
+def test_bot_connection(token):
+    """Test connection to Telegram API"""
+    import requests
+    
+    print(f"\n{Colors.CYAN}🔗 Testing bot connection...{Colors.END}")
+    
+    try:
+        url = f"https://api.telegram.org/bot{token}/getMe"
+        response = requests.get(url, timeout=10)
         
-        # Save setup summary
-        with open(data_dir / "setup_summary.txt", "w") as f:
-            f.write(summary.replace(Colors.RED, "").replace(Colors.GREEN, "")
-                   .replace(Colors.YELLOW, "").replace(Colors.CYAN, "")
-                   .replace(Colors.BOLD, "").replace(Colors.END, ""))
-        
-        print_info(f"Setup summary saved to: {data_dir / 'setup_summary.txt'}")
-        
-        # Start bot option
-        start_now = get_input("Start bot now? (y/n)").lower()
-        if start_now == 'y':
-            print_info("Starting Nila Bot...")
-            os.system(f"{sys.executable} master.py")
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("ok"):
+                bot_name = data["result"]["first_name"]
+                print(f"{Colors.GREEN}✅ Connected successfully!{Colors.END}")
+                print(f"{Colors.BLUE}🤖 Bot Name: {bot_name}{Colors.END}")
+                return True
+    except Exception as e:
+        print(f"{Colors.RED}❌ Connection failed: {e}{Colors.END}")
+        return False
+
+def create_project_structure():
+    """Create all required folders and files"""
+    folders = [
+        "SETUP_CONFIG",
+        "CORE_SYSTEM", 
+        "MASTER_REGISTRIES/features",
+        "MASTER_REGISTRIES/commands",
+        "MASTER_REGISTRIES/admin",
+        "MASTER_REGISTRIES/features/auto_features",
+        "MASTER_REGISTRIES/commands/auto_commands", 
+        "MASTER_REGISTRIES/admin/auto_admin",
+        "MEDIA_TOOLS",
+        "DATABASE/models",
+        "UTILITIES",
+        "DATA_STORAGE"
+    ]
+    
+    for folder in folders:
+        os.makedirs(folder, exist_ok=True)
+        print(f"{Colors.GREEN}📁 Created: {folder}{Colors.END}")
+    
+    # Create __init__.py files
+    for root, dirs, files in os.walk("."):
+        if "__pycache__" not in root:
+            init_file = os.path.join(root, "__init__.py")
+            if not os.path.exists(init_file):
+                with open(init_file, "w") as f:
+                    f.write('"""Package initialization"""\n')
+    
+    print(f"{Colors.GREEN}✅ Project structure created!{Colors.END}")
+
+def show_summary(token, admin_id):
+    """Show setup summary"""
+    clear_screen()
+    print_banner()
+    
+    summary = f"""
+{Colors.GREEN}{Colors.BOLD}🎉 SETUP COMPLETED SUCCESSFULLY!{Colors.END}
+
+{Colors.CYAN}📋 SETUP SUMMARY:{Colors.END}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 {Colors.BLUE}Bot Name: {Colors.END}𝗡ɪʟᴀ♡ʚɞ ←●_0
+🔹 {Colors.BLUE}Version: {Colors.END}6.0.0
+🔹 {Colors.BLUE}Admin ID: {Colors.END}{admin_id}
+🔹 {Colors.BLUE}Config File: {Colors.END}DATA_STORAGE/config.vault
+🔹 {Colors.BLUE}Database: {Colors.END}DATA_STORAGE/bot.db
+
+{Colors.CYAN}🚀 FEATURES ENABLED:{Colors.END}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Professional Welcome System
+✅ Rules Management  
+✅ Live Streaming
+✅ Image Generator
+✅ Sticker Maker
+✅ Admin Controls
+✅ Auto Setup System
+
+{Colors.CYAN}📖 NEXT STEPS:{Colors.END}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. {Colors.GREEN}Start the bot:{Colors.END}
+   {Colors.YELLOW}python master.py{Colors.END}
+
+2. {Colors.GREEN}Add features:{Colors.END}
+   Edit MASTER_REGISTRIES/features/FEATURE_REGISTRY.py
+
+3. {Colors.GREEN}Add commands:{Colors.END}  
+   Edit MASTER_REGISTRIES/commands/COMMAND_REGISTRY.py
+
+4. {Colors.GREEN}Join group and use /admin{Colors.END}
+   to configure the bot
+
+{Colors.PURPLE}🔧 Support: @YourSupportChannel{Colors.END}
+"""
+    print(summary)
+
+def main():
+    """Main setup wizard"""
+    clear_screen()
+    print_banner()
+    
+    print(f"{Colors.YELLOW}🎯 Welcome to Nila Bot Pro Setup!{Colors.END}")
+    print(f"{Colors.CYAN}This wizard will guide you through setup.{Colors.END}\n")
+    
+    input(f"{Colors.BLUE}Press Enter to continue...{Colors.END}")
+    
+    # Step 1: Check Python
+    check_python_version()
+    
+    # Step 2: Create structure
+    create_project_structure()
+    
+    # Step 3: Install dependencies
+    if not install_dependencies():
+        return
+    
+    # Step 4: Get bot token
+    token = get_bot_token()
+    
+    # Step 5: Test connection
+    if not test_bot_connection(token):
+        retry = input(f"{Colors.RED}Connection failed! Retry? (y/n): {Colors.END}")
+        if retry.lower() == 'y':
+            token = get_bot_token()
+            test_bot_connection(token)
+    
+    # Step 6: Get admin ID
+    admin_id = get_admin_id()
+    
+    # Step 7: Cloudinary setup
+    cloudinary_config = setup_cloudinary()
+    
+    # Step 8: Generate config
+    generate_config(token, admin_id, cloudinary_config)
+    
+    # Step 9: Show summary
+    show_summary(token, admin_id)
+    
+    # Step 10: Option to start bot
+    start_now = input(f"\n{Colors.BLUE}Start bot now? (y/n): {Colors.END}")
+    if start_now.lower() == 'y':
+        print(f"{Colors.GREEN}🚀 Starting Nila Bot Pro...{Colors.END}")
+        os.system("python master.py")
 
 if __name__ == "__main__":
-    try:
-        wizard = SetupWizard()
-        wizard.run()
-    except KeyboardInterrupt:
-        print(f"\n{Colors.YELLOW}Setup cancelled by user.{Colors.END}")
-        sys.exit(0)
-    except Exception as e:
-        print_error(f"Setup failed: {e}")
-        sys.exit(1)
+    main()
